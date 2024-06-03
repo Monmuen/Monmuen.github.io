@@ -16,16 +16,16 @@
   <meta name="author" content="Monmuen">
   <meta name="keywords" content="">
   
-    <meta name="description" content="如题，搭建博客时本地预览正常，在将博客发布到Github Pages时界面显示不正常。通过在网页中右键选择检查，发现是css和js文件无法正常导入。 解决办法1(原作者) 在博客source目录下创建assets&#x2F;static文件夹，将此链接下的内容全部拷贝到assets&#x2F;static文件夹中。 将_config.fluid.yml文件中的static_prefix部分改成">
+    <meta name="description" content="如题，搭建博客时本地预览正常，在将博客发布到Github Pages时界面显示不正常。通过在网页中右键选择检查，发现是css和js文件无法正常导入。 解决办法1(原出处) 在博客的source目录里加入.nojekyll文件，然后更改Hexo的_config.yml加入以下配置：         还不行的话在.deploy_git里加入.nojekyll文件。  解决办法2(原作者) 在博客s">
 <meta property="og:type" content="article">
 <meta property="og:title" content="hexo d博客时遇到css和js文件报错的问题">
 <meta property="og:url" content="https://monmuen.github.io/2024/03/13/hexo-d%E5%8D%9A%E5%AE%A2%E6%97%B6%E9%81%87%E5%88%B0css%E5%92%8Cjs%E6%96%87%E4%BB%B6%E6%8A%A5%E9%94%99%E7%9A%84%E9%97%AE%E9%A2%98/index.html">
 <meta property="og:site_name" content="Fog">
-<meta property="og:description" content="如题，搭建博客时本地预览正常，在将博客发布到Github Pages时界面显示不正常。通过在网页中右键选择检查，发现是css和js文件无法正常导入。 解决办法1(原作者) 在博客source目录下创建assets&#x2F;static文件夹，将此链接下的内容全部拷贝到assets&#x2F;static文件夹中。 将_config.fluid.yml文件中的static_prefix部分改成">
+<meta property="og:description" content="如题，搭建博客时本地预览正常，在将博客发布到Github Pages时界面显示不正常。通过在网页中右键选择检查，发现是css和js文件无法正常导入。 解决办法1(原出处) 在博客的source目录里加入.nojekyll文件，然后更改Hexo的_config.yml加入以下配置：         还不行的话在.deploy_git里加入.nojekyll文件。  解决办法2(原作者) 在博客s">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://monmuen.github.io/2024/03/13/hexo-d%E5%8D%9A%E5%AE%A2%E6%97%B6%E9%81%87%E5%88%B0css%E5%92%8Cjs%E6%96%87%E4%BB%B6%E6%8A%A5%E9%94%99%E7%9A%84%E9%97%AE%E9%A2%98/img2.png">
 <meta property="article:published_time" content="2024-03-13T11:06:59.000Z">
-<meta property="article:modified_time" content="2024-03-13T11:53:51.240Z">
+<meta property="article:modified_time" content="2024-04-03T01:48:49.133Z">
 <meta property="article:author" content="Monmuen">
 <meta property="article:tag" content="问题解决">
 <meta name="twitter:card" content="summary_large_image">
@@ -313,7 +313,15 @@
               <div class="markdown-body">
                 
                 <p>  如题，搭建博客时本地预览正常，在将博客发布到Github Pages时界面显示不正常。通过在网页中右键选择检查，发现是css和js文件无法正常导入。</p>
-<h2 id="解决办法1-原作者"><a href="#解决办法1-原作者" class="headerlink" title="解决办法1(原作者)"></a>解决办法1(<a target="_blank" rel="noopener" href="https://blog.ctftools.com/2022/06/newpost-44/">原作者</a>)</h2><ol>
+<h2 id="解决办法1-原出处"><a href="#解决办法1-原出处" class="headerlink" title="解决办法1(原出处)"></a>解决办法1(<a target="_blank" rel="noopener" href="https://github.com/iissnan/hexo-theme-next/issues/1220">原出处</a>)</h2><ul>
+<li>在博客的source目录里加入.nojekyll文件，然后更改Hexo的_config.yml加入以下配置：</li>
+</ul>
+  <img src="/2024/03/13/hexo-d%E5%8D%9A%E5%AE%A2%E6%97%B6%E9%81%87%E5%88%B0css%E5%92%8Cjs%E6%96%87%E4%BB%B6%E6%8A%A5%E9%94%99%E7%9A%84%E9%97%AE%E9%A2%98/img2.png" srcset="/img/loading.gif" lazyload class="">  
+
+<ul>
+<li>还不行的话在.deploy_git里加入.nojekyll文件。</li>
+</ul>
+<h2 id="解决办法2-原作者"><a href="#解决办法2-原作者" class="headerlink" title="解决办法2(原作者)"></a>解决办法2(<a target="_blank" rel="noopener" href="https://blog.ctftools.com/2022/06/newpost-44/">原作者</a>)</h2><ol>
 <li>在博客source目录下创建assets&#x2F;static文件夹，将<a target="_blank" rel="noopener" href="https://github.com/dr34-m/hexo/tree/master/source/assets/static">此链接</a>下的内容全部拷贝到assets&#x2F;static文件夹中。</li>
 <li>将_config.fluid.yml文件中的static_prefix部分改成如下这样：</li>
 </ol>
@@ -368,14 +376,6 @@
 
   moment: /assets/static/
 </code></pre>
-<h2 id="解决办法2-原出处"><a href="#解决办法2-原出处" class="headerlink" title="解决办法2(原出处)"></a>解决办法2(<a target="_blank" rel="noopener" href="https://github.com/iissnan/hexo-theme-next/issues/1220">原出处</a>)</h2><ul>
-<li>在博客的source目录里加入.nojekyll文件，然后更改Hexo的_config.yml加入以下配置：</li>
-</ul>
-  <img src="/2024/03/13/hexo-d%E5%8D%9A%E5%AE%A2%E6%97%B6%E9%81%87%E5%88%B0css%E5%92%8Cjs%E6%96%87%E4%BB%B6%E6%8A%A5%E9%94%99%E7%9A%84%E9%97%AE%E9%A2%98/img2.png" srcset="/img/loading.gif" lazyload class="">  
-
-<ul>
-<li>还不行的话在.deploy_git里加入.nojekyll文件。</li>
-</ul>
 <hr>
 
                 
