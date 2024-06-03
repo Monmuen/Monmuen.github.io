@@ -1,4 +1,3 @@
-
 import * as THREE from './vendor/three.module.js';
 import { OrbitControls } from './vendor/OrbitControls.js';
 import { StereoEffect } from './vendor/StereoEffects.js'; //  直接用StereoEffect
