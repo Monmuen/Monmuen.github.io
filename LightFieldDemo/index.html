@@ -5,7 +5,75 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Light Field Renderer With Left/Right View</title>
-  <link rel="stylesheet" href="css/style.css>
+  <style type="text/css">
+body {
+  overflow: hidden;
+  margin: 0;
+  position: relative;
+}
+
+.controls {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  padding: 2rem;
+  color: #fff;
+  text-shadow: 2px 2px 2px black;
+  font-family: sans-serif;
+  max-width: 280px;
+  z-index: 2;
+}
+
+.controls div {
+  text-align: right;
+  margin-bottom: 1rem;
+}
+
+input[type=range] {
+  width: 200px;
+}
+
+a {
+  color: #999;
+}
+
+a:visted {
+  color: #666;
+}
+
+#load-wrap {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+#load {
+  padding: 1rem;
+  font-size: 2rem;
+  cursor: pointer;
+}
+#view-mode{
+  padding: 1rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+#videosrc {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 0;
+}
+
+video {
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+</style>
 </head>
 <body>
   <div id="load-wrap">
