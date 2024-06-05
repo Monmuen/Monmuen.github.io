@@ -1,33 +1,40 @@
 import * as THREE from './vendor/three.module.js';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { StereoEffect } from './vendor/StereoEffects.js'; //  直接用StereoEffect
-
+import { StereoEffect } from './vendor/StereoEffects.js';
+import { VRButton } from './vendor/VRButton.js';
 const apertureInput = document.querySelector('#aperture');
 const focusInput = document.querySelector('#focus');
 const stInput = document.querySelector('#stplane');
 const loadWrap = document.querySelector('#load-wrap');
 const loadBtn = document.querySelector('#load');
-const viewModeBtn = document.querySelector('#view-mode'); // 左右视点切换按钮
+const viewModeBtn = document.querySelector('#view-mode');
+const gyroButton = document.querySelector('#gyro-button');
 
 const scene = new THREE.Scene();
 let width = window.innerWidth;
 let height = window.innerHeight;
 const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-const renderer = new THREE.WebGLRenderer();
+const gyroCamera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);// 陀螺仪控制使用的相机
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 let fragmentShader, vertexShader;
-
+renderer.xr.enabled = true; // 启用WebXR
 renderer.setSize(width, height);
 document.body.appendChild(renderer.domElement);
+document.body.appendChild(VRButton.createButton(renderer));
 
-camera.position.z = 2; // 调整相机位置
+camera.position.z = 2;
+gyroCamera.position.z = 2;
+gyroCamera.lookAt(0, 0, 1); // 确保初始方向一致
 
-const effect = new StereoEffect(renderer); // 使用StereoEffect
+const effect = new StereoEffect(renderer);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.target = new THREE.Vector3(0, 0, 1);
 controls.panSpeed = 2;
+controls.enabled = true; // 默认启用
 
+let useDeviceControls = false;
 let fieldTexture;
 let plane, planeMat, planePts;
 const filename = './framesnew.mp4';
@@ -35,17 +42,18 @@ const camsX = 17;
 const camsY = 17;
 const resX = 1024;
 const resY = 1024;
-const cameraGap = 0.08; // cm hardcoded for now
+const cameraGap = 0.08;
 let aperture = Number(apertureInput.value);
 let focus = Number(focusInput.value);
-
 let isStereoView = true;
 
 window.addEventListener('resize', () => {
   width = window.innerWidth;
   height = window.innerHeight;
   camera.aspect = width / height;
+  gyroCamera.aspect = width / height;
   camera.updateProjectionMatrix();
+  gyroCamera.updateProjectionMatrix();
   renderer.setSize(width, height);
   effect.setSize(width, height);
 });
@@ -73,7 +81,19 @@ viewModeBtn.addEventListener('click', () => {
   toggleViewMode();
 });
 
-// 切换视点模式
+gyroButton.addEventListener('click', () => {
+  useDeviceControls = !useDeviceControls;
+  if (useDeviceControls) {
+    controls.enabled = false; // 禁用 OrbitControls
+    initDeviceOrientationControls();
+    console.log("陀螺仪模式已启动。");
+  } else {
+    controls.enabled = true; // 启用 OrbitControls
+    disableDeviceOrientationControls();
+    console.log("陀螺仪模式已关闭。");
+  }
+});
+
 function toggleViewMode() {
   isStereoView = !isStereoView;
   viewModeBtn.textContent = isStereoView ? 'Switch to Single View' : 'Switch to Left/Right View';
@@ -160,7 +180,7 @@ function loadPlane() {
   plane = new THREE.Mesh(planeGeo, planeMat);
   const ptsMat = new THREE.PointsMaterial({ size: 0.01, color: 0xeeccff });
   planePts = new THREE.Points(planeGeo, ptsMat);
- 
+
   planePts.visible = stInput.checked;
   plane.add(planePts);
   scene.add(plane);
@@ -168,15 +188,54 @@ function loadPlane() {
 }
 
 function animate() {
+  renderer.setAnimationLoop(() => {
   requestAnimationFrame(animate);
-  controls.update();
-
-  if (isStereoView) {
-    effect.setSize( window.innerWidth, window.innerHeight );
-    effect.render(scene, camera); // 使用 StereoEffect 渲染场景
+  let activeCamera;
+  if (useDeviceControls) {
+    activeCamera = gyroCamera;
   } else {
-    renderer.setSize(width, height);// 修正视图尺寸
-    renderer.render(scene, camera); // 单视图渲染
-    
+    activeCamera = camera;
+    controls.update(); // 更新 OrbitControls
   }
+  if (isStereoView) {
+    effect.setSize(window.innerWidth, window.innerHeight);
+    effect.render(scene, activeCamera);
+  } else {
+    renderer.setSize(width, height);
+    renderer.render(scene, activeCamera);
+  }
+});
+}
+
+let initialOrientation = null;
+
+function initDeviceOrientationControls() {
+  window.addEventListener('deviceorientation', handleDeviceOrientation);
+}
+
+function disableDeviceOrientationControls() {
+  window.removeEventListener('deviceorientation', handleDeviceOrientation);
+  initialOrientation = null;
+}
+
+function handleDeviceOrientation(event) {
+  const alpha = event.alpha ? THREE.MathUtils.degToRad(event.alpha) : 0;
+  const beta = event.beta ? THREE.MathUtils.degToRad(event.beta) : 0;
+  const gamma = event.gamma ? THREE.MathUtils.degToRad(event.gamma) : 0;
+
+  if (!initialOrientation) {
+    initialOrientation = { alpha, beta, gamma };
+  }
+
+  updateCameraOrientation(alpha, beta, gamma);
+}
+
+function updateCameraOrientation(alpha, beta, gamma) {
+  const alphaOffset = initialOrientation ? alpha - initialOrientation.alpha : 0;
+  const betaOffset = initialOrientation ? beta - initialOrientation.beta : 0;
+  const gammaOffset = initialOrientation ? gamma - initialOrientation.gamma : 0;
+
+  const euler = new THREE.Euler(betaOffset, alphaOffset, -gammaOffset, 'YXZ');
+  gyroCamera.quaternion.setFromEuler(euler);
+  gyroCamera.updateMatrixWorld(true); // 确保相机更新，正确接收参数
 }
