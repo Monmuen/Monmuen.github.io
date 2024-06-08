@@ -231,4 +231,23 @@ function disableDeviceOrientationControls() {
 
 function handleDeviceOrientation(event) {
   const alpha = event.alpha ? THREE.MathUtils.degToRad(event.alpha) : 0;
+  const beta = event.beta ? THREE.MathUtils.degToRad(event.beta) : 0;
+  const gamma = event.gamma ? THREE.MathUtils.degToRad(event.gamma) : 0;
+
+  if (!initialOrientation) {
+    initialOrientation = { alpha, beta, gamma };
+  }
+
+  updateCameraOrientation(alpha, beta, gamma);
+}
+
+function updateCameraOrientation(alpha, beta, gamma) {
+  const alphaOffset = initialOrientation ? alpha - initialOrientation.alpha : 0;
+  const betaOffset = initialOrientation ? beta - initialOrientation.beta : 0;
+  const gammaOffset = initialOrientation ? gamma - initialOrientation.gamma : 0;
+
+  const euler = new THREE.Euler(betaOffset, alphaOffset, -gammaOffset, 'YXZ');
+  gyroCamera.quaternion.setFromEuler(euler);
+  gyroCamera.updateMatrixWorld(true); // 确保相机更新，正确接收参数
+}
   
