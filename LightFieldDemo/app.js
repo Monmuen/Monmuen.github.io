@@ -2,7 +2,6 @@ import * as THREE from './vendor/three.module.js';
 import { OrbitControls } from './vendor/OrbitControls.js';
 import { StereoEffect } from './vendor/StereoEffects.js';
 import { VRButton } from './vendor/VRButton.js';
-
 const apertureInput = document.querySelector('#aperture');
 const focusInput = document.querySelector('#focus');
 const stInput = document.querySelector('#stplane');
@@ -15,18 +14,17 @@ const scene = new THREE.Scene();
 let width = window.innerWidth;
 let height = window.innerHeight;
 const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-const gyroCamera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-const renderer = new THREE.WebGLRenderer();
+const gyroCamera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);// 陀螺仪控制使用的相机
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 let fragmentShader, vertexShader;
-renderer.xr.enabled = true;
+renderer.xr.enabled = true; // 启用WebXR
 renderer.setSize(width, height);
 document.body.appendChild(renderer.domElement);
 document.body.appendChild(VRButton.createButton(renderer));
 
-camera.position.set(0, 0, 2); // 确保相机初始高度为1.6
-gyroCamera.position.set(0, 0, 2); // 确保陀螺仪相机初始高度为1.6
+camera.position.z = 2;
+gyroCamera.position.z = 2;
 gyroCamera.lookAt(0, 0, 1); // 确保初始方向一致
-
 
 const effect = new StereoEffect(renderer);
 
@@ -34,13 +32,11 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.target = new THREE.Vector3(0, 0, 1);
 controls.panSpeed = 2;
-controls.enabled = true;
+controls.enabled = true; // 默认启用
 
 let useDeviceControls = false;
 let fieldTexture;
 let plane, planeMat, planePts;
-//const imagePath = './lightfielddata/image';
-//const imagePath = 'https://light-field-data.oss-cn-beijing.aliyuncs.com/Image/image';
 const filename = './framesnew.mp4';
 const camsX = 17;
 const camsY = 17;
@@ -51,7 +47,6 @@ let aperture = Number(apertureInput.value);
 let focus = Number(focusInput.value);
 let isStereoView = true;
 
-
 window.addEventListener('resize', () => {
   width = window.innerWidth;
   height = window.innerHeight;
@@ -61,7 +56,6 @@ window.addEventListener('resize', () => {
   gyroCamera.updateProjectionMatrix();
   renderer.setSize(width, height);
   effect.setSize(width, height);
-  
 });
 
 apertureInput.addEventListener('input', e => {
@@ -90,11 +84,11 @@ viewModeBtn.addEventListener('click', () => {
 gyroButton.addEventListener('click', () => {
   useDeviceControls = !useDeviceControls;
   if (useDeviceControls) {
-    controls.enabled = false;
+    controls.enabled = false; // 禁用 OrbitControls
     initDeviceOrientationControls();
     console.log("陀螺仪模式已启动。");
   } else {
-    controls.enabled = true;
+    controls.enabled = true; // 启用 OrbitControls
     disableDeviceOrientationControls();
     console.log("陀螺仪模式已关闭。");
   }
@@ -105,11 +99,8 @@ function toggleViewMode() {
   viewModeBtn.textContent = isStereoView ? 'Switch to Single View' : 'Switch to Left/Right View';
 }
 
-
-
 async function loadScene() {
   await loadShaders();
-  initPlaneMaterial();
   await extractVideo();
   loadPlane();
   animate();
@@ -135,24 +126,10 @@ renderer.xr.addEventListener('sessionend', () => {
   //plane.position.set(0,0,0);
 });
 
-
 async function loadShaders() {
   vertexShader = await fetch('./vertex.glsl').then(res => res.text());
   fragmentShader = await fetch('./fragment.glsl').then(res => res.text());
   console.log('Loaded shaders');
-}
-function initPlaneMaterial() {
-  planeMat = new THREE.ShaderMaterial({
-    uniforms: {
-      field: { value: null }, // 初始化时设置为 null
-      camArraySize: new THREE.Uniform(new THREE.Vector2(camsX, camsY)),
-      aperture: { value: aperture },
-      focus: { value: focus },
-      // useDeviceControls: { value: useDeviceControls ? 1.0 : 0.0 }
-    },
-    vertexShader,
-    fragmentShader,
-  });
 }
 
 async function extractVideo() {
@@ -198,6 +175,16 @@ async function extractVideo() {
     fieldTexture.needsUpdate = true;
   };
 
+  video.addEventListener('seeked', async function () {
+    if (seekResolve) seekResolve();
+  });
+
+  video.addEventListener('loadeddata', async () => {
+    await fetchFrames();
+    console.log('loaded data');
+  });
+}
+
 function loadPlane() {
   const planeGeo = new THREE.PlaneGeometry(camsX * cameraGap * 4, camsY * cameraGap * 4, camsX, camsY);
   const planePtsGeo = new THREE.PlaneGeometry(camsX * cameraGap * 2, camsY * cameraGap * 2, camsX, camsY);
@@ -213,27 +200,22 @@ function loadPlane() {
 
 function animate() {
   renderer.setAnimationLoop(() => {
-    requestAnimationFrame(animate);
-    let activeCamera;
-    if (useDeviceControls) {
-      activeCamera = gyroCamera;
-      
-    } else {
-      activeCamera = camera;
-      controls.update();
-    }
-   
-    //planeMat.uniforms.useDeviceControls.value = useDeviceControls ? 1.0 : 0.0; // 添加此行
-    if (isStereoView) {
-      effect.setSize(window.innerWidth, window.innerHeight);
-      effect.render(scene, activeCamera);
-      
-    } else {
-      renderer.setSize(width, height);
-      renderer.render(scene, activeCamera);
-    }
-   
-  });
+  requestAnimationFrame(animate);
+  let activeCamera;
+  if (useDeviceControls) {
+    activeCamera = gyroCamera;
+  } else {
+    activeCamera = camera;
+    controls.update(); // 更新 OrbitControls
+  }
+  if (isStereoView) {
+    effect.setSize(window.innerWidth, window.innerHeight);
+    effect.render(scene, activeCamera);
+  } else {
+    renderer.setSize(width, height);
+    renderer.render(scene, activeCamera);
+  }
+});
 }
 
 let initialOrientation = null;
@@ -249,22 +231,4 @@ function disableDeviceOrientationControls() {
 
 function handleDeviceOrientation(event) {
   const alpha = event.alpha ? THREE.MathUtils.degToRad(event.alpha) : 0;
-  const beta = event.beta ? THREE.MathUtils.degToRad(event.beta) : 0;
-  const gamma = event.gamma ? THREE.MathUtils.degToRad(event.gamma) : 0;
-
-  if (!initialOrientation) {
-    initialOrientation = { alpha, beta, gamma };
-  }
-
-  updateCameraOrientation(alpha, beta, gamma);
-}
-
-function updateCameraOrientation(alpha, beta, gamma) {
-  const alphaOffset = initialOrientation ? alpha - initialOrientation.alpha : 0;
-  const betaOffset = initialOrientation ? beta - initialOrientation.beta : 0;
-  const gammaOffset = initialOrientation ? gamma - initialOrientation.gamma : 0;
-
-  const euler = new THREE.Euler(betaOffset, alphaOffset, -gammaOffset, 'YXZ');
-  gyroCamera.quaternion.setFromEuler(euler);
-  gyroCamera.updateMatrixWorld(true);
-}
+  
