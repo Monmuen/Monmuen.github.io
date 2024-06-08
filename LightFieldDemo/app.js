@@ -155,44 +155,55 @@ function initPlaneMaterial() {
 }
 
 async function loadImages() {
-  const loader = new THREE.ImageBitmapLoader();
-  const allBuffer = new Uint8Array(resX * resY * 4 * camsX * camsY);
+    const loader = new THREE.ImageLoader();
+    const allBuffers = [];
 
-  const loadImage = (index) => {
-    return new Promise((resolve, reject) => {
-      const imagePathWithIndex = `${imagePath}${index + 1}.png`; // 修正索引以匹配文件名
-      loader.load(
-        imagePathWithIndex,
-        (imageBitmap) => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          canvas.width = resX;
-          canvas.height = resY;
-          ctx.drawImage(imageBitmap, 0, 0, resX, resY);
-          const imgData = ctx.getImageData(0, 0, resX, resY);
-          allBuffer.set(imgData.data, index * imgData.data.byteLength);
-          resolve();
-        },
-        undefined,
-        reject
-      );
+    for (let i = 1; i <= camsX * camsY; i++) {
+        const imagePathWithIndex = `${imagePath}${i}.png`;
+        const imageData = await loadImage(loader, imagePathWithIndex);
+        allBuffers.push(imageData);
+    }
+
+    loadWrap.style.display = 'none';
+    // 合并所有图像数据到一个大的 Float32Array 中
+    const totalLength = resX * resY * 4 * camsX * camsY;
+    const allBuffer = new Float32Array(totalLength);
+    let offset = 0;
+    allBuffers.forEach(buffer => {
+        allBuffer.set(buffer, offset);
+        offset += buffer.length;
     });
-  };
 
-  const loadPromises = [];
-  for (let i = 0; i < camsX * camsY; i++) {
-    loadPromises.push(loadImage(i));
-  }
+    fieldTexture = new THREE.DataTexture2DArray(allBuffer, resX, resY, camsX * camsY);
+    console.log('Loaded field data');
 
-  await Promise.all(loadPromises);
-
-  loadWrap.style.display = 'none';
-  fieldTexture = new THREE.DataTexture2DArray(allBuffer, resX, resY, camsX * camsY);
-  console.log('Loaded field data');
-
-  planeMat.uniforms.field.value = fieldTexture;
-  fieldTexture.needsUpdate = true;
+    planeMat.uniforms.field.value = fieldTexture;
+    fieldTexture.needsUpdate = true;
 }
+
+function loadImage(loader, imagePath) {
+    return new Promise((resolve, reject) => {
+        loader.load(
+            imagePath,
+            (image) => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = resX;
+                canvas.height = resY;
+                ctx.drawImage(image, 0, 0, resX, resY);
+                const imgData = ctx.getImageData(0, 0, resX, resY);
+                // 使用 Float32Array 存储图像数据
+                const buffer = new Float32Array(imgData.data);
+                resolve(buffer);
+            },
+            undefined,
+            (error) => {
+                reject(error);
+            }
+        );
+    });
+}
+
 
 function loadPlane() {
   const planeGeo = new THREE.PlaneGeometry(camsX * cameraGap * 4, camsY * cameraGap * 4, camsX, camsY);
