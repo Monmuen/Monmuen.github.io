@@ -39,7 +39,7 @@ controls.enabled = true;
 let useDeviceControls = false;
 let fieldTexture;
 let plane, planeMat, planePts;
-const imagePath = './image/image';
+const imagePath = './lightfielddata/image';
 const camsX = 17;
 const camsY = 17;
 const resX = 1024;
