@@ -106,26 +106,6 @@ async function loadScene() {
   animate();
 }
 
-renderer.xr.addEventListener('sessionstart', () => {
-  // plane.position.set(0, 0, -2); // 确保相机能正确看到图像
-  
-  useDeviceControls = true;
-
-  plane.position.set(0,0,-2)
-  planePts.position.set(0, 1.6, -2.01);
-  plane.updateMatrix();
-
-  console.log('Plane position set to:', plane.position);
-  console.log('PlanePts position set to:', planePts.position);
-});
-
-renderer.xr.addEventListener('sessionend', () => {
-  // plane.position.set(0, 0, 0); // 退出VR模式后重置位置
-  // planePts.position.set(0, 0, -0.01); // 重置点云的位置
-  scene.position.set(0,0,0);
-  //plane.position.set(0,0,0);
-});
-
 async function loadShaders() {
   vertexShader = await fetch('./vertex.glsl').then(res => res.text());
   fragmentShader = await fetch('./fragment.glsl').then(res => res.text());
@@ -186,14 +166,23 @@ async function extractVideo() {
 }
 
 function loadPlane() {
-  const planeGeo = new THREE.PlaneGeometry(camsX * cameraGap * 4, camsY * cameraGap * 4, camsX, camsY);
-  const planePtsGeo = new THREE.PlaneGeometry(camsX * cameraGap * 2, camsY * cameraGap * 2, camsX, camsY);
+  const planeGeo = new THREE.PlaneGeometry(camsX * cameraGap, camsY * cameraGap, camsX, camsY);
+  planeMat = new THREE.ShaderMaterial({
+    uniforms: {
+      field: { value: fieldTexture },
+      camArraySize: new THREE.Uniform(new THREE.Vector2(camsX, camsY)),
+      aperture: { value: aperture },
+      focus: { value: focus }
+    },
+    vertexShader,
+    fragmentShader,
+  });
+  plane = new THREE.Mesh(planeGeo, planeMat);
   const ptsMat = new THREE.PointsMaterial({ size: 0.01, color: 0xeeccff });
-  planePts = new THREE.Points(planePtsGeo, ptsMat);
-  planePts.position.set(0,0,-0.01);
+  planePts = new THREE.Points(planeGeo, ptsMat);
+
   planePts.visible = stInput.checked;
-  plane = new THREE.Mesh(planeGeo, planeMat); // 使用之前定义的 planeMat
-  scene.add(planePts);
+  plane.add(planePts);
   scene.add(plane);
   console.log('Loaded plane');
 }
@@ -250,4 +239,3 @@ function updateCameraOrientation(alpha, beta, gamma) {
   gyroCamera.quaternion.setFromEuler(euler);
   gyroCamera.updateMatrixWorld(true); // 确保相机更新，正确接收参数
 }
-  
