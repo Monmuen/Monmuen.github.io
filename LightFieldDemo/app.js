@@ -154,31 +154,36 @@ function initPlaneMaterial() {
 }
 
 async function loadImages() {
-  const loader = new THREE.ImageLoader();
+  const loader = new THREE.ImageBitmapLoader();
   const allBuffer = new Uint8Array(resX * resY * 4 * camsX * camsY);
-  let offset = 0;
 
-  for (let i = 1; i <= camsX * camsY; i++) {
-    const imagePathWithIndex = `${imagePath}${i}.png`;
-    await new Promise((resolve, reject) => {
+  const loadImage = (index) => {
+    return new Promise((resolve, reject) => {
+      const imagePathWithIndex = `${imagePath}${index + 1}.png`; // 修正索引以匹配文件名
       loader.load(
         imagePathWithIndex,
-        (image) => {
+        (imageBitmap) => {
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
           canvas.width = resX;
           canvas.height = resY;
-          ctx.drawImage(image, 0, 0, resX, resY);
+          ctx.drawImage(imageBitmap, 0, 0, resX, resY);
           const imgData = ctx.getImageData(0, 0, resX, resY);
-          allBuffer.set(imgData.data, offset);
-          offset += imgData.data.byteLength;
+          allBuffer.set(imgData.data, index * imgData.data.byteLength);
           resolve();
         },
         undefined,
         reject
       );
     });
+  };
+
+  const loadPromises = [];
+  for (let i = 0; i < camsX * camsY; i++) {
+    loadPromises.push(loadImage(i));
   }
+
+  await Promise.all(loadPromises);
 
   loadWrap.style.display = 'none';
   fieldTexture = new THREE.DataTexture2DArray(allBuffer, resX, resY, camsX * camsY);
