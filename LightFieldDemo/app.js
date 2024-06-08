@@ -40,7 +40,8 @@ let useDeviceControls = false;
 let fieldTexture;
 let plane, planeMat, planePts;
 //const imagePath = './lightfielddata/image';
-const imagePath = 'https://light-field-data.oss-cn-beijing.aliyuncs.com/Image/image';
+//const imagePath = 'https://light-field-data.oss-cn-beijing.aliyuncs.com/Image/image';
+const filename = './framesnew.mp4';
 const camsX = 17;
 const camsY = 17;
 const resX = 1024;
@@ -109,7 +110,7 @@ function toggleViewMode() {
 async function loadScene() {
   await loadShaders();
   initPlaneMaterial();
-  await loadImages();
+  await extractVideo();
   loadPlane();
   animate();
 }
@@ -154,45 +155,48 @@ function initPlaneMaterial() {
   });
 }
 
-async function loadImages() {
-  const loader = new THREE.ImageBitmapLoader();
-  const allBuffer = new Float32Array(resX * resY * 4 * camsX * camsY);
+async function extractVideo() {
+  const video = document.createElement('video');
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = resX;
+  canvas.height = resY;
+  canvas.setAttribute('id', 'videosrc');
+  video.src = filename;
+  let seekResolve;
+  let count = 0;
+  let offset = 0;
+  const allBuffer = new Uint8Array(resX * resY * 4 * camsX * camsY);
 
-  const loadImage = (index) => {
-    return new Promise((resolve, reject) => {
-      const imagePathWithIndex = `${imagePath}${index + 1}.png`; // 修正索引以匹配文件名
-      loader.load(
-        imagePathWithIndex,
-        (imageBitmap) => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          canvas.width = resX;
-          canvas.height = resY;
-          ctx.drawImage(imageBitmap, 0, 0, resX, resY);
-          const imgData = ctx.getImageData(0, 0, resX, resY);
-          allBuffer.set(imgData.data, index * imgData.data.byteLength);
-          resolve();
-        },
-        undefined,
-        reject
-      );
-    });
+  console.log('starting extraction');
+
+  const getBufferFromVideo = () => {
+    ctx.drawImage(video, 0, 0, resX, resY);
+    const imgData = ctx.getImageData(0, 0, resX, resY);
+    allBuffer.set(imgData.data, offset);
+    offset += imgData.data.byteLength;
+    count++;
+    loadBtn.textContent = `Loaded ${Math.round(100 * count / (camsX * camsY))}%`;
   };
 
-  const loadPromises = [];
-  for (let i = 0; i < camsX * camsY; i++) {
-    loadPromises.push(loadImage(i));
-  }
+  const fetchFrames = async () => {
+    let currentTime = 0;
 
-  await Promise.all(loadPromises);
+    while (count < camsX * camsY) {
+      getBufferFromVideo();
+      currentTime += 0.0333;
+      video.currentTime = currentTime;
+      await new Promise(res => (seekResolve = res));
+    }
 
-  loadWrap.style.display = 'none';
-  fieldTexture = new THREE.DataTexture2DArray(allBuffer, resX, resY, camsX * camsY);
-  console.log('Loaded field data');
+    loadWrap.style.display = 'none';
 
-  planeMat.uniforms.field.value = fieldTexture;
-  fieldTexture.needsUpdate = true;
-}
+    fieldTexture = new THREE.DataTexture2DArray(allBuffer, resX, resY, camsX * camsY);
+    console.log('Loaded field data');
+
+    planeMat.uniforms.field.value = fieldTexture;
+    fieldTexture.needsUpdate = true;
+  };
 
 function loadPlane() {
   const planeGeo = new THREE.PlaneGeometry(camsX * cameraGap * 4, camsY * cameraGap * 4, camsX, camsY);
