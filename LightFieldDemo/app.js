@@ -157,7 +157,9 @@ async function extractVideo() {
   video.src = filename;
   let seekResolve;
   let count = 0;
-  const allBuffer = new Uint8Array(resX * resY * 4); // 单帧缓冲区
+  let offset = 0;
+  const frameSize = resX * resY * 4;
+  const allBuffer = new Uint8Array(frameSize); // 单帧缓冲区
 
   console.log('starting extraction');
 
@@ -165,15 +167,26 @@ async function extractVideo() {
     ctx.drawImage(video, 0, 0, resX, resY);
     const imgData = ctx.getImageData(0, 0, resX, resY);
     allBuffer.set(imgData.data);
+    return allBuffer;
   };
 
   const fetchFrames = async () => {
     let currentTime = 0;
 
+    // 初始化 fieldTexture
+    const tempTexture = new THREE.DataTexture2DArray(
+      new Uint8Array(frameSize * camsX * camsY),
+      resX,
+      resY,
+      camsX * camsY
+    );
+    tempTexture.format = THREE.RGBAFormat;
+    tempTexture.type = THREE.UnsignedByteType;
+
     while (count < camsX * camsY) {
-      getBufferFromVideo();
-      // 处理单帧数据
-      // 这里可以将allBuffer的数据复制到一个更大的缓冲区或进行其他处理
+      const frameBuffer = getBufferFromVideo();
+      // 将当前帧数据复制到总缓冲区的相应位置
+      tempTexture.image.data.set(frameBuffer, count * frameSize);
       currentTime += 0.0333;
       video.currentTime = currentTime;
       await new Promise(res => (seekResolve = res));
@@ -183,8 +196,10 @@ async function extractVideo() {
 
     loadWrap.style.display = 'none';
 
-    // 在这里创建fieldTexture并分配所有帧的数据
-    // ...
+    // 完成所有帧的加载后，更新 fieldTexture
+    tempTexture.needsUpdate = true;
+    fieldTexture = tempTexture;
+    planeMat.uniforms.field.value = fieldTexture;
 
     console.log('Loaded field data');
   };
@@ -198,6 +213,7 @@ async function extractVideo() {
     console.log('loaded data');
   });
 }
+
 
 
 function loadPlane() {
