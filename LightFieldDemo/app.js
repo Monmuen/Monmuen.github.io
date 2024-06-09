@@ -151,28 +151,32 @@ async function extractImages() {
   const loader = new THREE.ImageLoader();
   let count = 0;
 
-  console.log('starting extraction');
+  console.log('开始提取图片');
 
-  // Initialize necessary parameters
+  // 初始化必要的参数
   const totalFrames = camsX * camsY;
   const layerSize = resX * resY * 4;
-  
-  // Create an array to hold the image data for each frame
+
+  // 创建一个数组来保存每一帧的图像纹理
   const frameTextures = [];
 
   const fetchFrames = async () => {
-    for (let i = 0; i < totalFrames; i++) {
-      await loadImage(i);
-      loadBtn.textContent = `Loaded ${Math.round(100 * (i + 1) / totalFrames)}%`;
-    }
+    try {
+      for (let i = 0; i < totalFrames; i++) {
+        await loadImage(i);
+        loadBtn.textContent = `Loaded ${Math.round(100 * (i + 1) / totalFrames)}%`;
+      }
 
-    loadWrap.style.display = 'none';
-    console.log('Loaded field data');
+      loadWrap.style.display = 'none';
+      console.log('场景数据加载完毕');
+    } catch (error) {
+      console.error('加载图像时出错:', error);
+    }
   };
 
   const loadImage = async (index) => {
     return new Promise((resolve, reject) => {
-      loader.load(`./frames/frame${index + 1}.png`, (image) => {
+      loader.load(`./Image/image${index + 1}.png`, (image) => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = resX;
@@ -181,28 +185,45 @@ async function extractImages() {
         const imgData = ctx.getImageData(0, 0, resX, resY);
         const buffer = new Uint8Array(imgData.data);
 
-        frameTextures.push(buffer);
-        updateTexture(index);
+        // 更新纹理数据
+        updateTexture(buffer, index);
         count++;
         resolve();
       }, undefined, reject);
     });
   };
 
-  const updateTexture = (currentIndex) => {
-    const numLoadedFrames = frameTextures.length;
-    const totalData = new Uint8Array(layerSize * numLoadedFrames);
-    
-    for (let i = 0; i < numLoadedFrames; i++) {
-      totalData.set(frameTextures[i], i * layerSize);
-    }
-
-    const fieldTexture = new THREE.DataTexture2DArray(totalData, resX, resY, numLoadedFrames);
+  const updateTexture = (buffer, index) => {
+    const fieldTexture = new THREE.DataTexture2DArray(buffer, resX, resY, 1);
     fieldTexture.format = THREE.RGBAFormat;
     fieldTexture.type = THREE.UnsignedByteType;
     fieldTexture.needsUpdate = true;
 
-    planeMat.uniforms.field.value = fieldTexture;
+    // 将当前帧的纹理添加到数组中的相应位置
+    frameTextures[index] = fieldTexture;
+
+    // 创建新的纹理数组并合并所有帧
+    const combinedTexture = combineTextures(frameTextures);
+
+    // 将更新后的纹理数组应用于材质
+    planeMat.uniforms.field.value = combinedTexture;
+  };
+
+  const combineTextures = (textures) => {
+    const numFrames = textures.length;
+    const totalData = new Uint8Array(layerSize * numFrames);
+
+    for (let i = 0; i < numFrames; i++) {
+      const textureData = textures[i].image.data;
+      totalData.set(textureData, i * layerSize);
+    }
+
+    const combinedTexture = new THREE.DataTexture2DArray(totalData, resX, resY, numFrames);
+    combinedTexture.format = THREE.RGBAFormat;
+    combinedTexture.type = THREE.UnsignedByteType;
+    combinedTexture.needsUpdate = true;
+
+    return combinedTexture;
   };
 
   await fetchFrames();
