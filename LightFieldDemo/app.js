@@ -2,6 +2,7 @@ import * as THREE from './vendor/three.module.js';
 import { OrbitControls } from './vendor/OrbitControls.js';
 import { StereoEffect } from './vendor/StereoEffects.js';
 import { VRButton } from './vendor/VRButton.js';
+const CHUNK_SIZE = 4;
 const apertureInput = document.querySelector('#aperture');
 const focusInput = document.querySelector('#focus');
 const stInput = document.querySelector('#stplane');
@@ -149,90 +150,41 @@ function initPlaneMaterial() {
 
 async function extractImages() {
   const loader = new THREE.ImageLoader();
-  let count = 0;
-
-  console.log('开始提取图片');
-
-  // 初始化必要的参数
-  const totalFrames = camsX * camsY;
-  const layerSize = resX * resY * 4;
-
-  // 创建一个数组来保存每一帧的图像纹理
-  const frameTextures = [];
-
-  const fetchFrames = async () => {
-    try {
-      for (let i = 0; i < totalFrames; i++) {
-        await loadImage(i);
-        loadBtn.textContent = `Loaded ${Math.round(100 * (i + 1) / totalFrames)}%`;
-      }
-
-      loadWrap.style.display = 'none';
-      console.log('场景数据加载完毕');
-    } catch (error) {
-      console.error('加载图像时出错:', error);
-    }
-  };
-
-  const loadImage = async (index) => {
-    return new Promise((resolve, reject) => {
-      loader.load(`./frames/frame${index + 1}.png`, (image) => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = resX;
-        canvas.height = resY;
-        ctx.drawImage(image, 0, 0, resX, resY);
-        const imgData = ctx.getImageData(0, 0, resX, resY);
-        const buffer = new Uint8Array(imgData.data);
-
-        // 更新纹理数据
-        updateTexture(buffer, index);
-        count++;
+  const images = [];
+  const numFrames = camsX * camsY;
+  let loadedCount = 0;
+ 
+  for (let i = 0; i < numFrames; i++) {
+    const imageUrl = `./frames/frame${i + 1}.png`;
+    await new Promise((resolve, reject) => {
+      loader.load(imageUrl, (image) => {
+        images[i] = image;
+        loadedCount++;
+        loadBtn.textContent = `Loaded ${Math.round(100 * loadedCount / numFrames)}%`;
         resolve();
       }, undefined, reject);
     });
-  };
+  }
 
-  const updateTexture = (buffer, index) => {
-    const fieldTexture = new THREE.DataTexture2DArray(buffer, resX, resY, 1);
-    fieldTexture.format = THREE.RGBAFormat;
-    fieldTexture.type = THREE.UnsignedByteType;
-    fieldTexture.needsUpdate = true;
+  loadWrap.style.display = 'none';
 
-    // 将当前帧的纹理添加到数组中的相应位置
-    frameTextures[index] = fieldTexture;
+  // 创建纹理数组
+  fieldTexture = new THREE.DataTexture2DArray(new Uint8Array(resX * resY * 4 * numFrames), resX, resY, numFrames);
+  images.forEach((image, index) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = resX;
+    canvas.height = resY;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(image, 0, 0, resX, resY);
+    const imageData = ctx.getImageData(0, 0, resX, resY);
+    fieldTexture.image.data.set(imageData.data, index * resX * resY * 4);
+  });
 
-    // 创建新的纹理数组并合并所有帧
-    const combinedTexture = combineTextures(frameTextures);
+  fieldTexture.needsUpdate = true;
+  planeMat.uniforms.field.value = fieldTexture;
 
-    // 将更新后的纹理数组应用于材质
-    planeMat.uniforms.field.value = combinedTexture;
-  };
-
-  const combineTextures = (textures) => {
-    const numFrames = textures.length;
-    const totalData = new Uint8Array(layerSize * numFrames);
-
-    for (let i = 0; i < numFrames; i++) {
-      const textureData = textures[i].image.data;
-      totalData.set(textureData, i * layerSize);
-    }
-
-    const combinedTexture = new THREE.DataTexture2DArray(totalData, resX, resY, numFrames);
-    combinedTexture.format = THREE.RGBAFormat;
-    combinedTexture.type = THREE.UnsignedByteType;
-    combinedTexture.needsUpdate = true;
-
-    return combinedTexture;
-  };
-
-  await fetchFrames();
+  console.log('Loaded images');
 }
-
-
-
-
-
 
 function loadPlane() {
   const planeGeo = new THREE.PlaneGeometry(camsX * cameraGap * 4, camsY * cameraGap * 4, camsX, camsY);
