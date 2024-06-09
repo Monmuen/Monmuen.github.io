@@ -176,7 +176,7 @@ async function extractImages() {
 
   const loadImage = async (index) => {
     return new Promise((resolve, reject) => {
-      loader.load(`./Image/image${index + 1}.png`, (image) => {
+      loader.load(`./frames/frame${index + 1}.png`, (image) => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = resX;
