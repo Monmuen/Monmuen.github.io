@@ -153,16 +153,12 @@ async function extractImages() {
 
   console.log('starting extraction');
 
-  // Initialize the DataTexture2DArray with proper dimensions but no data yet
+  // Initialize necessary parameters
   const totalFrames = camsX * camsY;
   const layerSize = resX * resY * 4;
-  const textureData = new Uint8Array(layerSize * totalFrames);
   
-  // Initialize the DataTexture2DArray with the correct parameters
-  const fieldTexture = new THREE.DataTexture2DArray(textureData, resX, resY, totalFrames);
-  fieldTexture.format = THREE.RGBAFormat;
-  fieldTexture.type = THREE.UnsignedByteType;
-  fieldTexture.needsUpdate = true;
+  // Create an array to hold the image data for each frame
+  const frameTextures = [];
 
   const fetchFrames = async () => {
     for (let i = 0; i < totalFrames; i++) {
@@ -185,22 +181,32 @@ async function extractImages() {
         const imgData = ctx.getImageData(0, 0, resX, resY);
         const buffer = new Uint8Array(imgData.data);
 
-        uploadToTexture(buffer, index);
+        frameTextures.push(buffer);
+        updateTexture(index);
         count++;
         resolve();
       }, undefined, reject);
     });
   };
 
-  const uploadToTexture = (buffer, index) => {
-    textureData.set(buffer, index * layerSize);
+  const updateTexture = (currentIndex) => {
+    const numLoadedFrames = frameTextures.length;
+    const totalData = new Uint8Array(layerSize * numLoadedFrames);
+    
+    for (let i = 0; i < numLoadedFrames; i++) {
+      totalData.set(frameTextures[i], i * layerSize);
+    }
+
+    const fieldTexture = new THREE.DataTexture2DArray(totalData, resX, resY, numLoadedFrames);
+    fieldTexture.format = THREE.RGBAFormat;
+    fieldTexture.type = THREE.UnsignedByteType;
     fieldTexture.needsUpdate = true;
+
     planeMat.uniforms.field.value = fieldTexture;
   };
 
   await fetchFrames();
 }
-
 
 
 
