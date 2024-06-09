@@ -157,17 +157,16 @@ async function extractVideo() {
   video.src = filename;
   let seekResolve;
   let count = 0;
-  let offset = 0;
   const frameSize = resX * resY * 4;
-  const allBuffer = new Uint8Array(frameSize); // 单帧缓冲区
+  const frameBuffer = new Uint8Array(frameSize); // 单帧缓冲区
 
   console.log('starting extraction');
 
   const getBufferFromVideo = () => {
     ctx.drawImage(video, 0, 0, resX, resY);
     const imgData = ctx.getImageData(0, 0, resX, resY);
-    allBuffer.set(imgData.data);
-    return allBuffer;
+    frameBuffer.set(imgData.data);
+    return frameBuffer;
   };
 
   const fetchFrames = async () => {
@@ -175,7 +174,7 @@ async function extractVideo() {
 
     // 初始化 fieldTexture
     const tempTexture = new THREE.DataTexture2DArray(
-      new Uint8Array(frameSize * camsX * camsY),
+      new Uint8Array(frameSize), // 初始化单帧大小的缓冲区
       resX,
       resY,
       camsX * camsY
@@ -185,20 +184,20 @@ async function extractVideo() {
 
     while (count < camsX * camsY) {
       const frameBuffer = getBufferFromVideo();
-      // 将当前帧数据复制到总缓冲区的相应位置
-      tempTexture.image.data.set(frameBuffer, count * frameSize);
+      // 更新单帧数据
+      tempTexture.image.data.set(frameBuffer, 0);
       currentTime += 0.0333;
       video.currentTime = currentTime;
       await new Promise(res => (seekResolve = res));
       count++;
       console.log(`Loaded ${count} frames`);
       loadBtn.textContent = `Loaded ${Math.round(100 * count / (camsX * camsY))}%`;
+
+      // 每帧加载后直接更新纹理
+      tempTexture.needsUpdate = true;
     }
 
     loadWrap.style.display = 'none';
-
-    // 完成所有帧的加载后，更新 fieldTexture
-    tempTexture.needsUpdate = true;
     fieldTexture = tempTexture;
     planeMat.uniforms.field.value = fieldTexture;
 
@@ -224,6 +223,12 @@ async function extractVideo() {
     video.play();
   });
 }
+
+loadBtn.addEventListener('click', async () => {
+  loadBtn.setAttribute('disabled', true);
+  await loadScene();
+});
+
 
 
 
