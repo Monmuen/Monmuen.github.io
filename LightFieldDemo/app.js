@@ -102,7 +102,7 @@ function toggleViewMode() {
 async function loadScene() {
   await loadShaders();
   initPlaneMaterial();
-  await extractVideo();
+  await extractImages();
   loadPlane();
   animate();
 }
@@ -147,58 +147,57 @@ function initPlaneMaterial() {
   });
 }
 
-async function extractVideo() {
-  const video = document.createElement('video');
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = resX;
-  canvas.height = resY;
-  canvas.setAttribute('id', 'videosrc');
-  video.src = filename;
-  let seekResolve;
+async function extractImages() {
+  const loader = new THREE.ImageLoader();
   let count = 0;
   let offset = 0;
-  const allBuffer = new Uint8Array(resX * resY * 4 * camsX * camsY);
 
   console.log('starting extraction');
 
-  const getBufferFromVideo = () => {
-    ctx.drawImage(video, 0, 0, resX, resY);
-    const imgData = ctx.getImageData(0, 0, resX, resY);
-    allBuffer.set(imgData.data, offset);
-    offset += imgData.data.byteLength;
-    count++;
-    loadBtn.textContent = `Loaded ${Math.round(100 * count / (camsX * camsY))}%`;
-  };
-
   const fetchFrames = async () => {
-    let currentTime = 0;
-
-    while (count < camsX * camsY) {
-      getBufferFromVideo();
-      currentTime += 0.0333;
-      video.currentTime = currentTime;
-      await new Promise(res => (seekResolve = res));
+    const loadPromises = [];
+    for (let i = 0; i < camsX * camsY; i++) {
+      loadPromises.push(loadImage(i));
     }
 
+    await Promise.all(loadPromises);
+
     loadWrap.style.display = 'none';
-
-    fieldTexture = new THREE.DataTexture2DArray(allBuffer, resX, resY, camsX * camsY);
     console.log('Loaded field data');
-
-    planeMat.uniforms.field.value = fieldTexture;
-    fieldTexture.needsUpdate = true;
   };
 
-  video.addEventListener('seeked', async function () {
-    if (seekResolve) seekResolve();
-  });
+  const loadImage = async (index) => {
+    return new Promise((resolve, reject) => {
+      loader.load(`./Image/image${index + 1}.png`, (image) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = resX;
+        canvas.height = resY;
+        ctx.drawImage(image, 0, 0, resX, resY);
+        const imgData = ctx.getImageData(0, 0, resX, resY);
+        const buffer = new Uint8Array(imgData.data);
 
-  video.addEventListener('loadeddata', async () => {
-    await fetchFrames();
-    console.log('loaded data');
-  });
+        if (index === 0) {
+          fieldTexture = new THREE.DataTexture2DArray(new Uint8Array(resX * resY * 4 * camsX * camsY), resX, resY, camsX * camsY);
+        }
+
+        fieldTexture.image.data.set(buffer, offset);
+        offset += buffer.length;
+        count++;
+
+        fieldTexture.needsUpdate = true;
+        planeMat.uniforms.field.value = fieldTexture;
+        loadBtn.textContent = `Loaded ${Math.round(100 * (index + 1) / (camsX * camsY))}%`;
+        resolve();
+      }, undefined, reject);
+    });
+  };
+
+  await fetchFrames();
 }
+
+
+
 
 function loadPlane() {
   const planeGeo = new THREE.PlaneGeometry(camsX * cameraGap * 4, camsY * cameraGap * 4, camsX, camsY);
