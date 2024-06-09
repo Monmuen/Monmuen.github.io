@@ -157,18 +157,14 @@ async function extractVideo() {
   video.src = filename;
   let seekResolve;
   let count = 0;
-  let offset = 0;
-  const allBuffer = new Uint8Array(resX * resY * 4 * camsX * camsY);
+  const allBuffer = new Uint8Array(resX * resY * 4); // 单帧缓冲区
 
   console.log('starting extraction');
 
   const getBufferFromVideo = () => {
     ctx.drawImage(video, 0, 0, resX, resY);
     const imgData = ctx.getImageData(0, 0, resX, resY);
-    allBuffer.set(imgData.data, offset);
-    offset += imgData.data.byteLength;
-    count++;
-    loadBtn.textContent = `Loaded ${Math.round(100 * count / (camsX * camsY))}%`;
+    allBuffer.set(imgData.data);
   };
 
   const fetchFrames = async () => {
@@ -176,18 +172,21 @@ async function extractVideo() {
 
     while (count < camsX * camsY) {
       getBufferFromVideo();
+      // 处理单帧数据
+      // 这里可以将allBuffer的数据复制到一个更大的缓冲区或进行其他处理
       currentTime += 0.0333;
       video.currentTime = currentTime;
       await new Promise(res => (seekResolve = res));
+      count++;
+      loadBtn.textContent = `Loaded ${Math.round(100 * count / (camsX * camsY))}%`;
     }
 
     loadWrap.style.display = 'none';
 
-    fieldTexture = new THREE.DataTexture2DArray(allBuffer, resX, resY, camsX * camsY);
-    console.log('Loaded field data');
+    // 在这里创建fieldTexture并分配所有帧的数据
+    // ...
 
-    planeMat.uniforms.field.value = fieldTexture;
-    fieldTexture.needsUpdate = true;
+    console.log('Loaded field data');
   };
 
   video.addEventListener('seeked', async function () {
@@ -199,6 +198,7 @@ async function extractVideo() {
     console.log('loaded data');
   });
 }
+
 
 function loadPlane() {
   const planeGeo = new THREE.PlaneGeometry(camsX * cameraGap * 4, camsY * cameraGap * 4, camsX, camsY);
