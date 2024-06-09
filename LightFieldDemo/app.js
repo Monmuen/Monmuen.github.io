@@ -191,6 +191,7 @@ async function extractVideo() {
       video.currentTime = currentTime;
       await new Promise(res => (seekResolve = res));
       count++;
+      console.log(`Loaded ${count} frames`);
       loadBtn.textContent = `Loaded ${Math.round(100 * count / (camsX * camsY))}%`;
     }
 
@@ -209,8 +210,18 @@ async function extractVideo() {
   });
 
   video.addEventListener('loadeddata', async () => {
+    console.log('Video data loaded, starting to fetch frames');
     await fetchFrames();
-    console.log('loaded data');
+    console.log('Loaded all frames');
+  });
+
+  video.addEventListener('error', (e) => {
+    console.error('Error loading video:', e);
+  });
+
+  video.addEventListener('canplay', () => {
+    console.log('Video can play');
+    video.play();
   });
 }
 
