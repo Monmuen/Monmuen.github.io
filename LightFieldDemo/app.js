@@ -37,7 +37,7 @@ controls.enabled = true; // 默认启用
 let useDeviceControls = false;
 let fieldTexture;
 let plane, planeMat, planePts;
-//const filename = './framesnew.mp4';
+const filename = './framesnew.mp4';
 const camsX = 17;
 const camsY = 17;
 const resX = 1024;
@@ -150,17 +150,21 @@ function initPlaneMaterial() {
 async function extractImages() {
   const loader = new THREE.ImageLoader();
   let count = 0;
-  let offset = 0;
 
   console.log('starting extraction');
 
-  const fetchFrames = async () => {
-    const loadPromises = [];
-    for (let i = 0; i < camsX * camsY; i++) {
-      loadPromises.push(loadImage(i));
-    }
+  // Initialize the DataTexture2DArray with null buffer initially
+  const totalFrames = camsX * camsY;
+  fieldTexture = new THREE.DataTexture2DArray(null, resX, resY, totalFrames);
+  fieldTexture.format = THREE.RGBAFormat;
+  fieldTexture.type = THREE.UnsignedByteType;
+  fieldTexture.needsUpdate = true;
 
-    await Promise.all(loadPromises);
+  const fetchFrames = async () => {
+    for (let i = 0; i < totalFrames; i++) {
+      await loadImage(i);
+      loadBtn.textContent = `Loaded ${Math.round(100 * (i + 1) / totalFrames)}%`;
+    }
 
     loadWrap.style.display = 'none';
     console.log('Loaded field data');
@@ -177,24 +181,26 @@ async function extractImages() {
         const imgData = ctx.getImageData(0, 0, resX, resY);
         const buffer = new Uint8Array(imgData.data);
 
-        if (index === 0) {
-          fieldTexture = new THREE.DataTexture2DArray(new Uint8Array(resX * resY * 4 * camsX * camsY), resX, resY, camsX * camsY);
-        }
-
-        fieldTexture.image.data.set(buffer, offset);
-        offset += buffer.length;
+        uploadToTexture(buffer, index);
         count++;
-
-        fieldTexture.needsUpdate = true;
-        planeMat.uniforms.field.value = fieldTexture;
-        loadBtn.textContent = `Loaded ${Math.round(100 * (index + 1) / (camsX * camsY))}%`;
         resolve();
       }, undefined, reject);
     });
   };
 
+  const uploadToTexture = (buffer, index) => {
+    const layerSize = resX * resY * 4;
+    const textureData = fieldTexture.image.data || new Uint8Array(layerSize * totalFrames);
+    textureData.set(buffer, index * layerSize);
+
+    fieldTexture.image.data = textureData;
+    fieldTexture.needsUpdate = true;
+    planeMat.uniforms.field.value = fieldTexture;
+  };
+
   await fetchFrames();
 }
+
 
 
 
