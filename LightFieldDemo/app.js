@@ -37,7 +37,7 @@ controls.enabled = true; // 默认启用
 let useDeviceControls = false;
 let fieldTexture;
 let plane, planeMat, planePts;
-const filename = './framesnew.mp4';
+//const filename = './framesnew.mp4';
 const camsX = 17;
 const camsY = 17;
 const resX = 1024;
@@ -168,7 +168,7 @@ async function extractImages() {
 
   const loadImage = async (index) => {
     return new Promise((resolve, reject) => {
-      loader.load(`./Image/image${index + 1}.png`, (image) => {
+      loader.load(`./lightfielddata/image${index + 1}.png`, (image) => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = resX;
