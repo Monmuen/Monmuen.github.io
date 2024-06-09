@@ -153,9 +153,13 @@ async function extractImages() {
 
   console.log('starting extraction');
 
-  // Initialize the DataTexture2DArray with null buffer initially
+  // Initialize the DataTexture2DArray with proper dimensions but no data yet
   const totalFrames = camsX * camsY;
-  fieldTexture = new THREE.DataTexture2DArray(null, resX, resY, totalFrames);
+  const layerSize = resX * resY * 4;
+  const textureData = new Uint8Array(layerSize * totalFrames);
+  
+  // Initialize the DataTexture2DArray with the correct parameters
+  const fieldTexture = new THREE.DataTexture2DArray(textureData, resX, resY, totalFrames);
   fieldTexture.format = THREE.RGBAFormat;
   fieldTexture.type = THREE.UnsignedByteType;
   fieldTexture.needsUpdate = true;
@@ -189,17 +193,15 @@ async function extractImages() {
   };
 
   const uploadToTexture = (buffer, index) => {
-    const layerSize = resX * resY * 4;
-    const textureData = fieldTexture.image.data || new Uint8Array(layerSize * totalFrames);
     textureData.set(buffer, index * layerSize);
-
-    fieldTexture.image.data = textureData;
     fieldTexture.needsUpdate = true;
     planeMat.uniforms.field.value = fieldTexture;
   };
 
   await fetchFrames();
 }
+
+
 
 
 
